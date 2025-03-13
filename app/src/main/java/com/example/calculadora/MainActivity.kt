@@ -3,22 +3,14 @@ package com.example.calculadora
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.calculadora.ui.theme.CalculadoraTheme
 
@@ -40,6 +32,7 @@ fun CalculadoraScreen() {
     var segundoValor by rememberSaveable { mutableStateOf("") }
     var operador by rememberSaveable { mutableStateOf("") }
     var displayText by rememberSaveable { mutableStateOf(ZERO) }
+    var mostrarFuncoesEspeciais by rememberSaveable { mutableStateOf(false) }
 
     CalculadoraTheme {
         Column(
@@ -49,40 +42,43 @@ fun CalculadoraScreen() {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Display(displayText)
-            Teclado(
-                onButtonClick = { input ->
-                    when {
-                        input == "C" -> {
-                            primeiroValor = ""
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Botao(texto = "C", cor = Color.Red, onClick = {
+                    primeiroValor = ""
+                    segundoValor = ""
+                    operador = ""
+                    displayText = ZERO
+                })
+                Botao(texto = "E", cor = Color.Gray, onClick = {
+                    mostrarFuncoesEspeciais = !mostrarFuncoesEspeciais
+                })
+            }
+            Teclado(mostrarFuncoesEspeciais, onButtonClick = { input ->
+                when {
+                    input in listOf("+", "-", "*", "/") -> {
+                        if (primeiroValor.isNotEmpty()) {
+                            operador = input
+                        }
+                    }
+                    input == "=" -> {
+                        if (primeiroValor.isNotEmpty() && segundoValor.isNotEmpty() && operador.isNotEmpty()) {
+                            displayText = processarEntrada(primeiroValor, segundoValor, operador)
+                            primeiroValor = displayText
                             segundoValor = ""
                             operador = ""
-                            displayText = ZERO
                         }
-                        input in listOf("+", "-", "*", "/") -> {
-                            if (primeiroValor.isNotEmpty()) {
-                                operador = input
-                            }
-                        }
-                        input == "=" -> {
-                            if (primeiroValor.isNotEmpty() && segundoValor.isNotEmpty() && operador.isNotEmpty()) {
-                                displayText = processarEntrada(primeiroValor, segundoValor, operador)
-                                primeiroValor = displayText
-                                segundoValor = ""
-                                operador = ""
-                            }
-                        }
-                        else -> {
-                            if (operador.isEmpty()) {
-                                primeiroValor += input
-                                displayText = primeiroValor
-                            } else {
-                                segundoValor += input
-                                displayText = segundoValor
-                            }
+                    }
+                    else -> {
+                        if (operador.isEmpty()) {
+                            primeiroValor += input
+                            displayText = primeiroValor
+                        } else {
+                            segundoValor += input
+                            displayText = segundoValor
                         }
                     }
                 }
-            )
+            })
         }
     }
 }
@@ -99,11 +95,13 @@ fun Display(displayText: String) {
 }
 
 @Composable
-fun Botao(texto: String, onClick: (String) -> Unit) {
+fun Botao(texto: String, cor: Color = Color.DarkGray, onClick: (String) -> Unit) {
     Button(
         onClick = { onClick(texto) },
+        colors = ButtonDefaults.buttonColors(containerColor = cor),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier
-            .size(80.dp)
+            .size(70.dp)
             .padding(4.dp)
     ) {
         Text(
@@ -114,20 +112,44 @@ fun Botao(texto: String, onClick: (String) -> Unit) {
 }
 
 @Composable
-fun Teclado(onButtonClick: (String) -> Unit) {
+fun Teclado(mostrarFuncoesEspeciais: Boolean, onButtonClick: (String) -> Unit) {
     val botoes = listOf(
         listOf("7", "8", "9", "/"),
         listOf("4", "5", "6", "*"),
         listOf("1", "2", "3", "-"),
-        listOf("0", ".", "=", "+"),
-        listOf("C")
+        listOf("0", ".", "=", "+")
     )
+    val funcoesEspeciais = listOf("√", "%")
 
     Column {
         for (linha in botoes) {
-            Row(modifier = Modifier.padding(8.dp)) {
+            Row(modifier = Modifier.padding(4.dp)) {
                 for (botao in linha) {
-                    Botao(texto = botao, onClick = onButtonClick)
+                    val cor = when (botao) {
+                        in "0".."9" -> Color.DarkGray
+                        in listOf("+", "-", "*", "/", "=") -> Color(0xFFFFA500)
+                        else -> Color.Gray
+                    }
+                    val tamanho = when (botao) {
+                        "0" -> Modifier.weight(2f)
+                        "=" -> Modifier.weight(2f)
+                        else -> Modifier.weight(1f)
+                    }
+                    Button(
+                        onClick = { onButtonClick(botao) },
+                        colors = ButtonDefaults.buttonColors(containerColor = cor),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = tamanho.padding(4.dp)
+                    ) {
+                        Text(text = botao, style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            }
+        }
+        if (mostrarFuncoesEspeciais) {
+            Row(modifier = Modifier.padding(4.dp)) {
+                for (botao in funcoesEspeciais) {
+                    Botao(texto = botao, cor = Color.Blue, onClick = onButtonClick)
                 }
             }
         }
